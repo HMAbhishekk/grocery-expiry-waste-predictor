@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🥦 AI Grocery Expiry Predictor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      min-height: 100vh; color: white; padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 5px;
+      color: #4ade80;
+    }
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      margin-bottom: 30px;
+      font-size: 0.9rem;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    .cards {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+    }
+    .card {
+      flex: 1;
+      min-width: 150px;
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .card h2 { font-size: 2rem; }
+    .card p { color: #94a3b8; font-size: 0.85rem; margin-top: 5px; }
+    .card.critical { border-top: 4px solid #ef4444; }
+    .card.warning  { border-top: 4px solid #f59e0b; }
+    .card.good     { border-top: 4px solid #22c55e; }
+    .card.total    { border-top: 4px solid #3b82f6; }
+    .form-box {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+    .form-box h3 {
+      margin-bottom: 15px;
+      color: #4ade80;
+      font-size: 1.1rem;
+    }
+    .form-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    input, select {
+      flex: 1;
+      min-width: 140px;
+      padding: 10px 14px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: white;
+      font-size: 0.9rem;
+    }
+    input::placeholder { color: #475569; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.9rem;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-green  { background: #22c55e; color: white; }
+    .btn-blue   { background: #3b82f6; color: white; }
+    .btn-orange { background: #f59e0b; color: white; }
+    .btn-red    { background: #ef4444; color: white; }
+    .prediction-box {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 15px;
+      display: none;
+      border: 1px solid #334155;
+    }
+    .prediction-box h4 { color: #4ade80; margin-bottom: 10px; }
+    .waste-bar-bg {
+      background: #1e293b;
+      border-radius: 999px;
+      height: 20px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+    .waste-bar {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .recipes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .recipe-tag {
+      background: #1e293b;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: #38bdf8;
+      border: 1px solid #0284c7;
+    }
+    .items-box {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
+    .items-box h3 {
+      margin-bottom: 15px;
+      color: #4ade80;
+    }
+    .items-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    th {
+      background: #0f172a;
+      padding: 10px;
+      text-align: left;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    td { padding: 10px; border-bottom: 1px solid #1e293b; }
+    tr:hover { background: #0f172a; }
+    .badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .badge.critical { background: #450a0a; color: #ef4444; }
+    .badge.warning  { background: #451a03; color: #f59e0b; }
+    .badge.good     { background: #052e16; color: #22c55e; }
+    .loading {
+      text-align: center;
+      color: #94a3b8;
+      padding: 20px;
+      display: none;
+    }
+    .alert-box {
+      background: #1a1a2e;
+      border: 1px solid #f59e0b;
+      border-radius: 12px;
+      padding: 15px 20px;
+      margin-bottom: 20px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🥦 AI Grocery Expiry Waste Predictor</h1>
+  <p class="subtitle">Powered by AWS Bedrock · Amazon Nova Micro · DynamoDB</p>
+
+  <div class="cards">
+    <div class="card total">
+      <h2 id="totalCount">0</h2>
+      <p>Total Items</p>
+    </div>
+    <div class="card critical">
+      <h2 id="criticalCount">0</h2>
+      <p>🚨 Expiring Today/Tomorrow</p>
+    </div>
+    <div class="card warning">
+      <h2 id="warningCount">0</h2>
+      <p>⚠️ Expiring in 3 Days</p>
+    </div>
+    <div class="card good">
+      <h2 id="goodCount">0</h2>
+      <p>✅ Fresh Items</p>
+    </div>
+  </div>
+
+  <div class="alert-box" id="alertBox">
+    ⚠️ <strong>You have items expiring soon!</strong>
+    Click "Send Expiry Alerts" to get email notifications.
+  </div>
+
+  <div class="form-box">
+    <h3>➕ Add Grocery Item</h3>
+    <div class="form-row">
+      <input type="text" id="itemName" placeholder="Item name (e.g. Milk)">
+      <input type="text" id="quantity" placeholder="Quantity (e.g. 1 litre)">
+      <select id="category">
+        <option value="dairy">🥛 Dairy</option>
+        <option value="vegetables">🥦 Vegetables</option>
+        <option value="fruits">🍎 Fruits</option>
+        <option value="meat">🥩 Meat</option>
+        <option value="grains">🌾 Grains</option>
+        <option value="general">📦 General</option>
+      </select>
+      <input type="number" id="expiryDays" placeholder="Expires in (days)" min="1" max="365">
+    </div>
+    <div class="form-row">
+      <button class="btn btn-green" onclick="addItem()">➕ Add Item</button>
+      <button class="btn btn-blue" onclick="predictWaste()">🤖 Predict Waste</button>
+      <button class="btn btn-orange" onclick="sendAlerts()">🔔 Send Expiry Alerts</button>
+      <button class="btn btn-blue" onclick="loadItems()" style="background:#6366f1">🔄 Refresh Items</button>
+    </div>
+    <div class="prediction-box" id="predictionBox">
+      <h4>🤖 AI Waste Prediction</h4>
+      <div id="predictionContent"></div>
+    </div>
+    <div class="loading" id="loadingMsg">⏳ AI is analyzing...</div>
+  </div>
+
+  <div class="items-box">
+    <div class="items-header">
+      <h3>🛒 Your Grocery Items</h3>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Quantity</th>
+          <th>Category</th>
+          <th>Days Left</th>
+          <th>Expires On</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="itemsTable">
+        <tr>
+          <td colspan="6" style="text-align:center; color:#475569; padding:30px">
+            No items yet. Add your first grocery item above!
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const API_URL = "https://7tns77lezi.execute-api.us-east-1.amazonaws.com/Prod";
+  const USER_ID = "user1";
+
+  async function addItem() {
+    const itemName   = document.getElementById('itemName').value.trim();
+    const quantity   = document.getElementById('quantity').value.trim();
+    const category   = document.getElementById('category').value;
+    const expiryDays = document.getElementById('expiryDays').value;
+
+    if (!itemName || !expiryDays) {
+      alert('Please enter item name and expiry days!');
+      return;
+    }
+
+    showLoading(true);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_item',
+          userId: USER_ID,
+          itemName: itemName,
+          quantity: quantity,
+          category: category,
+          expiry_days: expiryDays
+        })
+      });
+      const data = await res.json();
+      alert('✅ ' + data.message);
+      document.getElementById('itemName').value   = '';
+      document.getElementById('quantity').value   = '';
+      document.getElementById('expiryDays').value = '';
+      loadItems();
+    } catch(e) {
+      alert('Error adding item. Check console.');
+      console.error(e);
+    }
+    showLoading(false);
+  }
+
+  async function predictWaste() {
+    const itemName   = document.getElementById('itemName').value.trim();
+    const expiryDays = document.getElementById('expiryDays').value;
+
+    if (!itemName || !expiryDays) {
+      alert('Please enter item name and expiry days first!');
+      return;
+    }
+
+    showLoading(true);
+    document.getElementById('predictionBox').style.display = 'none';
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'predict_waste',
+          userId: USER_ID,
+          itemName: itemName,
+          expiry_days: expiryDays
+        })
+      });
+      const data = await res.json();
+      showPrediction(data.data);
+    } catch(e) {
+      alert('Prediction error. Check console.');
+      console.error(e);
+    }
+    showLoading(false);
+  }
+
+  function showPrediction(p) {
+    if (!p) return;
+    const prob  = p.waste_probability || 0;
+    const color = prob > 70 ? '#ef4444' : prob > 40 ? '#f59e0b' : '#22c55e';
+    const recipes = (p.recipes || [])
+      .map(function(r) { return '<span class="recipe-tag">🍽️ ' + r + '</span>'; }).join('');
+
+    document.getElementById('predictionContent').innerHTML =
+      '<p><strong>Prediction:</strong> ' + p.prediction + '</p>' +
+      '<div class="waste-bar-bg">' +
+        '<div class="waste-bar" style="width:' + prob + '%; background:' + color + '">' +
+          prob + '% waste risk' +
+        '</div>' +
+      '</div>' +
+      '<p style="color:#94a3b8; font-size:0.85rem">📌 ' + p.reason + '</p>' +
+      '<p style="margin-top:10px"><strong>💡 Tip:</strong> ' + p.tip + '</p>' +
+      '<p style="margin-top:10px"><strong>🍽️ Use it in:</strong></p>' +
+      '<div class="recipes">' + recipes + '</div>';
+
+    document.getElementById('predictionBox').style.display = 'block';
+  }
+
+  async function loadItems() {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'get_items',
+          userId: USER_ID
+        })
+      });
+      const data = await res.json();
+      renderItems(data.data && data.data.items ? data.data.items : []);
+    } catch(e) {
+      console.error('Load error:', e);
+    }
+  }
+
+  function renderItems(items) {
+    var total = 0, critical = 0, warning = 0, good = 0;
+    var html = '';
+
+    if (items.length === 0) {
+      html = '<tr><td colspan="6" style="text-align:center; color:#475569; padding:30px">No items yet. Add your first grocery item above!</td></tr>';
+    } else {
+      items.forEach(function(item) {
+        total++;
+        var u = item.urgency;
+        if (u === 'critical') critical++;
+        else if (u === 'warning') warning++;
+        else good++;
+
+        var expiry = item.expiryDate ? item.expiryDate.split('T')[0] : 'N/A';
+        var daysLeft = item.daysLeft !== undefined ? item.daysLeft : '?';
+        var label = u === 'critical' ? '🚨 Critical' : u === 'warning' ? '⚠️ Warning' : '✅ Good';
+
+        html +=
+          '<tr>' +
+            '<td><strong>' + item.itemName + '</strong></td>' +
+            '<td>' + (item.quantity || '-') + '</td>' +
+            '<td>' + (item.category || '-') + '</td>' +
+            '<td style="font-weight:bold">' + daysLeft + ' days</td>' +
+            '<td>' + expiry + '</td>' +
+            '<td><span class="badge ' + u + '">' + label + '</span></td>' +
+          '</tr>';
+      });
+    }
+
+    document.getElementById('itemsTable').innerHTML      = html;
+    document.getElementById('totalCount').textContent    = total;
+    document.getElementById('criticalCount').textContent = critical;
+    document.getElementById('warningCount').textContent  = warning;
+    document.getElementById('goodCount').textContent     = good;
+
+    if (critical > 0) {
+      document.getElementById('alertBox').style.display = 'block';
+    }
+  }
+
+  async function sendAlerts() {
+    showLoading(true);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'check_expiry',
+          userId: USER_ID
+        })
+      });
+      const data = await res.json();
+      alert('🔔 ' + data.message);
+    } catch(e) {
+      alert('Alert error. Check console.');
+      console.error(e);
+    }
+    showLoading(false);
+  }
+
+  function showLoading(show) {
+    document.getElementById('loadingMsg').style.display = show ? 'block' : 'none';
+  }
+
+  loadItems();
+  setInterval(loadItems, 30000);
+</script>
+</body>
+</html>
